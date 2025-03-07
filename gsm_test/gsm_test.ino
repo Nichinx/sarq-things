@@ -4,11 +4,19 @@
 #define GSM_TX 17    // UART1 TX (ESP32 sending to GSM)
 #define GSM_RST 25   // GSM Reset Pin
 #define GSM_INT 35   // GSM Interrupt (Ring Indicator)
+#define AUX_TRIG 26
 
 HardwareSerial GSMSerial(1); // Use UART1 for GSM communication
 
 void setup() {
   Serial.begin(115200);
+
+ //trigger aux 3.3v
+  pinMode(AUX_TRIG, OUTPUT);
+  delay(500);
+  digitalWrite(AUX_TRIG, HIGH);
+  delay(500);
+
   GSMSerial.begin(9600, SERIAL_8N1, GSM_RX, GSM_TX); // RX, TX pins for UART1
   pinMode(GSM_RST, OUTPUT);
   pinMode(GSM_INT, INPUT);
@@ -27,18 +35,29 @@ void loop() {
   Serial.println("Select an option:");
   Serial.println("1. Print CSQ");
   Serial.println("2. Test send SMS");
-  while (Serial.available() == 0) {}
-  char option = Serial.read();
-  switch (option) {
-    case '1':
-      printCSQ();
-      break;
-    case '2':
-      testSendSMS();
-      break;
-    default:
-      Serial.println("Invalid option.");
+  while (Serial.available() == 0) { delay(100); }
+
+  String option = Serial.readStringUntil('\n');
+  option.trim(); // Remove any leading/trailing whitespace
+
+  // switch (option) {
+  //   case '1':
+  //     printCSQ();
+  //     break;
+  //   case '2':
+  //     testSendSMS();
+  //     break;
+  //   default:
+  //     Serial.println("Invalid option.");
+  // }
+  if (option == "1") {
+    printCSQ();
+  } else if (option == "2") {
+    testSendSMS();
+  } else {
+    Serial.println("Invalid option.");
   }
+
   delay(1000);
 }
 
@@ -158,9 +177,25 @@ void printCSQ() {
   Serial.println(csqBuffer);
 }
 
+// void testSendSMS() {
+//   const char* phoneNumber = "639954127577"; // Replace with actual phone number
+//   const char* message = "Hello from ESP32!";
+//   char command[50];
+//   sprintf(command, "AT+CMGS=\"%s\"\r", phoneNumber);
+//   GSMSerial.write(command);
+//   delay(1000);
+//   GSMSerial.write(message);
+//   GSMSerial.write(26); // ASCII code for CTRL+Z
+//   Serial.println("SMS sent.");
+// }
+
 void testSendSMS() {
   const char* phoneNumber = "639954127577"; // Replace with actual phone number
-  const char* message = "Hello from ESP32!";
+  char message[160];
+  Serial.println("Enter SMS message:");
+  readSerialInput(message, sizeof(message));
+  Serial.print("Sending SMS: ");
+  Serial.println(message);
   char command[50];
   sprintf(command, "AT+CMGS=\"%s\"\r", phoneNumber);
   GSMSerial.write(command);
@@ -170,6 +205,38 @@ void testSendSMS() {
   Serial.println("SMS sent.");
 }
 
+void readSerialInput(char* buffer, int bufferSize) {
+  int index = 0;
+  while (index < bufferSize - 1) {
+    if (Serial.available() > 0) {
+      char c = Serial.read();
+      if (c == '\n' || c == '\r') {
+        break;
+      }
+      buffer[index++] = c;
+    }
+  }
+  buffer[index] = '\0';
+}
+
+// void GSMAnswer(char* responseBuffer, int bufferLength) {
+//   int bufferIndex = 0;
+//   unsigned long waitStart = millis();
+
+//   for (int i = 0; i < bufferLength; i++) {
+//     responseBuffer[i] = 0x00;
+//   }
+//   for (int j = 0; j < bufferLength && GSMSerial.available() > 0; j++) {
+//     responseBuffer[j] = GSMSerial.read();
+//   }
+//   if (strlen(responseBuffer) > 0) Serial.println(responseBuffer);
+//   if (strlen(responseBuffer) >= bufferLength) {
+//     responseBuffer[bufferLength - 1] = 0x00;
+//   } else {
+//     responseBuffer[strlen(responseBuffer)] = 0x00;
+//   }
+// }
+
 void GSMAnswer(char* responseBuffer, int bufferLength) {
   int bufferIndex = 0;
   unsigned long waitStart = millis();
@@ -177,15 +244,11 @@ void GSMAnswer(char* responseBuffer, int bufferLength) {
   for (int i = 0; i < bufferLength; i++) {
     responseBuffer[i] = 0x00;
   }
-  for (int j = 0; j < bufferLength && GSMSerial.available() > 0; j++) {
-    responseBuffer[j] = GSMSerial.read();
+  while (GSMSerial.available() > 0 && bufferIndex < bufferLength - 1) {
+    responseBuffer[bufferIndex++] = GSMSerial.read();
   }
+  responseBuffer[bufferIndex] = '\0';
   if (strlen(responseBuffer) > 0) Serial.println(responseBuffer);
-  if (strlen(responseBuffer) >= bufferLength) {
-    responseBuffer[bufferLength - 1] = 0x00;
-  } else {
-    responseBuffer[strlen(responseBuffer)] = 0x00;
-  }
 }
 
 bool GSMWaitResponse(const char* targetResponse, int waitDuration, bool showResponse) {
