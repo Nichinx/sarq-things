@@ -61,12 +61,12 @@ void setup() {
 
   Wire.begin(SDA_PIN, SCL_PIN);
 
-  scanI2CDevices();  // Scan and print detected I2C devices
-
   // Try initializing UBlox if it's found
   if (myGNSS.begin(Wire)) {
     Serial.println("ublox initialized");
   }
+
+  scanI2CDevices();  // Scan and print detected I2C devices
 }
 
 void loop() {
