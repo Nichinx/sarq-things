@@ -7,6 +7,7 @@
 #define AUX_TRIG 26
 
 HardwareSerial GSMSerial(1); // Use UART1 for GSM communication
+bool gsmInitialized = false; // Global variable to track GSM initialization status
 
 void setup() {
   Serial.begin(115200);
@@ -26,12 +27,19 @@ void setup() {
   Serial.println("Initializing GSM module...");
   if (GSMInit()) {
     Serial.println("GSM module initialized successfully.");
+    gsmInitialized = true;
   } else {
     Serial.println("GSM module initialization failed.");
   }
 }
 
 void loop() {
+  if (!gsmInitialized) {
+    Serial.println("GSM module not initialized. Halting execution.");
+    delay(1000); // Wait for a while before checking again
+    return;
+  }
+
   Serial.println("Select an option:");
   Serial.println("1. Print CSQ");
   Serial.println("2. Test send SMS");
@@ -40,16 +48,6 @@ void loop() {
   String option = Serial.readStringUntil('\n');
   option.trim(); // Remove any leading/trailing whitespace
 
-  // switch (option) {
-  //   case '1':
-  //     printCSQ();
-  //     break;
-  //   case '2':
-  //     testSendSMS();
-  //     break;
-  //   default:
-  //     Serial.println("Invalid option.");
-  // }
   if (option == "1") {
     printCSQ();
   } else if (option == "2") {
@@ -202,7 +200,13 @@ void testSendSMS() {
   delay(1000);
   GSMSerial.write(message);
   GSMSerial.write(26); // ASCII code for CTRL+Z
-  Serial.println("SMS sent.");
+
+  // Check if the SMS was sent successfully
+  if (GSMWaitResponse("OK", 10000, true)) {
+    Serial.println("SMS sent.");
+  } else {
+    Serial.println("Failed to send SMS.");
+  }
 }
 
 void readSerialInput(char* buffer, int bufferSize) {
