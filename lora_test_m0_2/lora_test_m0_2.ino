@@ -25,32 +25,38 @@ void setup() {
 
     rf95.setFrequency(433.0);
     rf95.setTxPower(23, false);
-    rf95.setModemConfig(RH_RF95::Bw125Cr45Sf128);  // 125kHz BW, CR 4/5, SF 128 (Spreading Factor 7)
+    rf95.setModemConfig(RH_RF95::Bw125Cr45Sf128);
     rf95.setPreambleLength(8);
 }
 
 void loop() {
     if (Serial.available()) {
         String input = Serial.readStringUntil('\n');
+        input.trim();  
+
         Serial.print("Sending: ");
         Serial.println(input);
 
-        uint8_t data[input.length() + 1];
-        input.toCharArray((char*)data, input.length() + 1);
+        uint8_t msgLength = input.length();
+        uint8_t data[msgLength + 1];
+        data[0] = msgLength;  
+        input.getBytes(data + 1, msgLength + 1);
 
-        rf95.send(data, sizeof(data) - 1);  // Send without the null terminator
+        rf95.send(data, msgLength + 1);
         rf95.waitPacketSent();
         Serial.println("Message Sent!");
-        delay(2000);  // Allow switch to receive mode
+        delay(2000);
     } else {
         uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
         uint8_t len = sizeof(buf);
 
         if (rf95.available()) {
             if (rf95.recv(buf, &len)) {
-                buf[len] = '\0';  // Null-terminate the received data
+                int msgLength = buf[0];  
+                buf[msgLength + 1] = '\0';
+
                 Serial.print("Received: ");
-                Serial.println((char*)buf);
+                Serial.println((char*)(buf + 1));
             }
         }
     }
