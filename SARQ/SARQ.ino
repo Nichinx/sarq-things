@@ -254,10 +254,15 @@ void changeRainGaugeType() {
     Serial.println("Select Rain Collector Type:");
     Serial.println("0: Pronamic (0.5mm/tip)");
     Serial.println("1: Davis (0.2mm/tip)");
-    unsigned long startTime = millis();
-    while (millis() - startTime < 120000) {
+    while (true) {
         if (Serial.available() > 0) {
-            int type = Serial.parseInt();
+            String input = Serial.readStringUntil('\n');
+            input.trim();
+            if (input.equalsIgnoreCase("exit")) {
+                Serial.println("Exiting Change Rain Gauge Type.");
+                return;
+            }
+            int type = input.toInt();
             if (type == 0 || type == 1) {
                 rainCollectorType = type;
                 Serial.printf("Rain Collector Type set to: %d\n", rainCollectorType);
@@ -267,7 +272,6 @@ void changeRainGaugeType() {
             }
         }
     }
-    Serial.println("Timeout: Rain Collector Type unchanged.");
 }
 
 void resetRainTips() {
@@ -364,21 +368,33 @@ void printCSQ() {
 }
 
 void sendSMS() {
-    const char* phoneNumber = "639954127577";
+    char phoneNumber[20];
     char message[160];
+    Serial.println("Enter SIM No. (in format 639XXXXXXXXX):");
+    while (Serial.available()) Serial.read();
+    while (!Serial.available());
+    String phoneInput = Serial.readStringUntil('\n');
+    phoneInput.trim();
+    phoneInput.toCharArray(phoneNumber, 20);
+    
     Serial.println("Enter SMS message:");
     while (Serial.available()) Serial.read();
     while (!Serial.available());
     String input = Serial.readStringUntil('\n');
     input.toCharArray(message, 160);
-    Serial.print("Sending SMS: ");
+    
+    Serial.print("Sending SMS to ");
+    Serial.print(phoneNumber);
+    Serial.print(": ");
     Serial.println(message);
+    
     char command[50];
     sprintf(command, "AT+CMGS=\"%s\"\r", phoneNumber);
     GSMSerial.write(command);
     delay(1000);
     GSMSerial.write(message);
     GSMSerial.write(26);
+    
     if (GSMWaitResponse("OK", 10000, true)) {
         Serial.println("SMS sent.");
     } else {
