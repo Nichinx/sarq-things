@@ -1,0 +1,3 @@
+Raw ADC,ESP ADC Cal Raw Voltage,Calculated VIN,Calibrated VIN,Actual Input,Difference
+3767,2.989,14.376,14.463,14.72,0.257
+3002,2.544,12.235,12.153,12.4,0.247
