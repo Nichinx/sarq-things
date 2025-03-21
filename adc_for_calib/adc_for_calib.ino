@@ -29,13 +29,8 @@ float calculateVIN(uint32_t adcRaw) {
 }
 
 float calibrateVIN(float vin) {
-        return (0.000481 * vin * vin * vin) + (-0.008346 * vin * vin) + (1.042636 * vin) + 0.019217; 
-    } else if (vin < 12.42) {
-        return (0.002794 * vin * vin) + (0.956618 * vin) + 0.261281;
-    } else {
-        return (0.014059 * vin * vin * vin) + (-0.587585 * vin * vin) + (9.253118 * vin) + (-38.640207);
-    }
-}
+        return (0.000443 * vin * vin * vin) + (-0.007643 * vin * vin) + (1.040472 * vin) + 0.018605; 
+    } 
 
 void setup() {
     Serial.begin(115200);
