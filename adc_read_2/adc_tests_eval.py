@@ -10,7 +10,7 @@ import serial.tools.list_ports
 import csv
 import time
 import re
-import os  # Import os to handle file paths
+import os
 
 def get_board_number():
     while True:
@@ -46,8 +46,8 @@ def list_serial_ports():
 
 def setup_serial(port, baudrate=115200):
     try:
-        ser = serial.Serial(port, baudrate, timeout=2)
-        time.sleep(2)  # Wait for connection to establish
+        ser = serial.Serial(port, baudrate, timeout=2, dsrdtr=False, rtscts=False)
+        time.sleep(2)  # Allow time for the connection
         print(f"Connected to {port}")
         return ser
     except serial.SerialException as e:
@@ -67,12 +67,12 @@ def parse_serial_data(line):
 def main():
     board_no = get_board_number()
     
-    # Define the directory for saving files
-    script_dir = os.path.dirname(os.path.abspath(__file__))  
-    tests_folder = os.path.join(script_dir, "tests")  # Create 'tests' folder in script directory
-    os.makedirs(tests_folder, exist_ok=True)  # Ensure the folder exists
+    # Create 'tests' directory in script path
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    test_dir = os.path.join(script_dir, "tests")
+    os.makedirs(test_dir, exist_ok=True)
     
-    filename = os.path.join(tests_folder, f"sarq-{board_no}.csv")  # CSV inside 'tests' folder
+    filename = os.path.join(test_dir, f"sarq-{board_no}.csv")
     
     port = list_serial_ports()
     if port is None:
@@ -88,32 +88,30 @@ def main():
         
         while True:
             try:
-                # Wait for user input before sending the trigger
                 user_input = input("Enter 'a' to input Actual Voltage (or 'q' to quit): ")
                 if user_input.lower() == 'q':
-                    print("Exiting...")
-                    break  # Exit loop
-                
-                if user_input.lower() == 'a':
+                    break
+                elif user_input.lower() == 'a':
                     actual_input = float(input("Actual Input Voltage: "))
                     ser.write(b'a')  # Send 'a' to Arduino to request data
                     
                     print("Waiting for serial data...")
-                    line = ser.readline().decode('utf-8').strip()
-                    if line:
-                        print(f"Received: {line}")
-                        parsed_data = parse_serial_data(line)
-                        if parsed_data:
-                            raw_adc, adc_cal_voltage, calculated_vin, calibrated_vin = parsed_data
-                            
-                            difference = round(calibrated_vin - actual_input, 4) if actual_input is not None else 'N/A'
-                            writer.writerow([raw_adc, adc_cal_voltage, calculated_vin, calibrated_vin, actual_input, difference])
-                            print(f"Logged: {raw_adc}, {adc_cal_voltage}, {calculated_vin}, {calibrated_vin}, {actual_input}, {difference}")
-                    else:
-                        print("No data received. Check if the Arduino is sending data.")
-            
+                    while True:
+                        line = ser.readline().decode('utf-8').strip()
+                        if line:
+                            print(f"Received: {line}")
+                            parsed_data = parse_serial_data(line)
+                            if parsed_data:
+                                raw_adc, adc_cal_voltage, calculated_vin, calibrated_vin = parsed_data
+                                
+                                difference = round(calibrated_vin - actual_input, 4)
+                                writer.writerow([raw_adc, adc_cal_voltage, calculated_vin, calibrated_vin, actual_input, difference])
+                                print(f"Logged: {raw_adc}, {adc_cal_voltage}, {calculated_vin}, {calibrated_vin}, {actual_input}, {difference}")
+                                break  # Break inner loop once data is received
+                        else:
+                            print("No data received. Check if the Arduino is sending data.")
             except ValueError:
-                print("Invalid voltage input. Please enter a valid number.")
+                print("Error in parsing serial data.")
             except KeyboardInterrupt:
                 print("Exiting...")
                 break
