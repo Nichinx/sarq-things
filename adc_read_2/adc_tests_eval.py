@@ -10,6 +10,7 @@ import serial.tools.list_ports
 import csv
 import time
 import re
+import os  # Import os to handle file paths
 
 def get_board_number():
     while True:
@@ -65,7 +66,13 @@ def parse_serial_data(line):
 
 def main():
     board_no = get_board_number()
-    filename = f"sarq-{board_no}.csv"
+    
+    # Define the directory for saving files
+    script_dir = os.path.dirname(os.path.abspath(__file__))  
+    tests_folder = os.path.join(script_dir, "tests")  # Create 'tests' folder in script directory
+    os.makedirs(tests_folder, exist_ok=True)  # Ensure the folder exists
+    
+    filename = os.path.join(tests_folder, f"sarq-{board_no}.csv")  # CSV inside 'tests' folder
     
     port = list_serial_ports()
     if port is None:
@@ -79,7 +86,6 @@ def main():
         writer = csv.writer(file)
         writer.writerow(["Raw ADC", "ESP ADC Cal Raw Voltage", "Calculated VIN", "Calibrated VIN", "Actual Input", "Difference"])
         
-        actual_input = None
         while True:
             try:
                 # Wait for user input before sending the trigger
@@ -111,7 +117,7 @@ def main():
             except KeyboardInterrupt:
                 print("Exiting...")
                 break
-
+    
     ser.close()
 
 if __name__ == "__main__":
