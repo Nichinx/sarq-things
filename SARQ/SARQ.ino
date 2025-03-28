@@ -67,18 +67,19 @@ void setup() {
     // init_ublox();
     GSMInit();
 
+    // Initialize LoRa
     LoRa.setPins(LORA_CS, LORA_RST, LORA_DIO0);
     if (!LoRa.begin(433E6)) {
-        Serial.println("LoRa init failed!");
-        while (true);
+        Serial.println("LoRa init failed! Continuing without LoRa functionality.");
+    } else {
+        LoRa.setTxPower(23);
+        LoRa.setSpreadingFactor(7);
+        LoRa.setSignalBandwidth(125E3);
+        LoRa.setCodingRate4(5);
+        LoRa.setPreambleLength(8);
     }
-    LoRa.setTxPower(23);
-    LoRa.setSpreadingFactor(7);
-    LoRa.setSignalBandwidth(125E3);
-    LoRa.setCodingRate4(5);
-    LoRa.setPreambleLength(8);
+
     Serial.println("Comprehensive Test Initialized. Select an option:");
-    
     printOptions();
 }
 
@@ -226,14 +227,28 @@ void printDateTime() {
 
 void changeDateTime() {
     Serial.println("Enter date & time in the format: YYYY,MM,DD,HH,MM,SS or type 'exit' to quit");
-    while (Serial.available()) Serial.read();
-    while (!Serial.available());
-    String input = Serial.readStringUntil('\n');
-    input.trim();
+    unsigned long startTime = millis();
+    String input = "";
+
+    // Wait for user input with a 60-second timeout
+    while (millis() - startTime < 60000) { // 60-second timeout
+        if (Serial.available()) {
+            input = Serial.readStringUntil('\n');
+            input.trim();
+            break;
+        }
+    }
+
+    if (input.isEmpty()) {
+        Serial.println("No input received. Exiting Change DateTime.");
+        return;
+    }
+
     if (input.equalsIgnoreCase("exit")) {
         Serial.println("Exiting Change DateTime.");
         return;
     }
+
     int year, month, day, hour, minute, second;
     if (sscanf(input.c_str(), "%d,%d,%d,%d,%d,%d", &year, &month, &day, &hour, &minute, &second) == 6) {
         rtc.adjust(DateTime(year, month, day, hour, minute, second));
@@ -241,6 +256,8 @@ void changeDateTime() {
     } else {
         Serial.println("Invalid input. RTC not updated.");
     }
+
+    // Clear any remaining input in the serial buffer
     while (Serial.available()) Serial.read();
 }
 
