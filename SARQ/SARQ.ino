@@ -35,7 +35,7 @@
 #define DEFAULT_VREF 1100
 
 // Global variables
-HardwareSerial mySerial(2);
+HardwareSerial SSMSerial(2);
 HardwareSerial GSMSerial(1);
 RTC_DS3231 rtc;
 SFE_UBLOX_GNSS myGNSS;
@@ -47,7 +47,7 @@ volatile bool rainInterruptFlag = false;
 
 void setup() {
     Serial.begin(BAUDRATE);
-    mySerial.begin(9600, SERIAL_8N1, RXD2, TXD2);
+    SSMSerial.begin(BAUDRATE, SERIAL_8N1, RXD2, TXD2);
     GSMSerial.begin(9600, SERIAL_8N1, GSM_RX, GSM_TX);
     Wire.begin(SDA_PIN, SCL_PIN);
 
@@ -133,6 +133,8 @@ void loop() {
                 case 'K': loraSendTest(); break;
                 case 'L': loraReceiveTest(); break;
                 case 'M': printVoltage(); break;
+                case 'N': sendCommandWithTimestamp(); break; // New option for sending command with timestamp
+                case 'O': testSSM(); break; // New option for testing SSM
                 default: Serial.println("Invalid option. Please select a valid option."); break;
             }
         } else {
@@ -163,6 +165,8 @@ void printOptions() {
     Serial.println("K. LoRa Send Test");
     Serial.println("L. LoRa Receive Test");
     Serial.println("M. Print voltage (analog read, vin calculated, calibrated vin)");
+    Serial.println("N. Send command with timestamp (ARQCMD6T/YYMMDDHHMMSS)");
+    Serial.println("O. Test SSM print");
     Serial.println("");
 }
 
@@ -178,12 +182,12 @@ void serialEchoTest() {
             }
             Serial.print("tx: ");
             Serial.println(input);
-            mySerial.println(input);
+            SSMSerial.println(input);
             Serial.println(""); Serial.println(">"); Serial.println("");
             delay(100);
         }
-        if (mySerial.available()) {
-            String received = mySerial.readStringUntil('\n');
+        if (SSMSerial.available()) {
+            String received = SSMSerial.readStringUntil('\n');
             received.trim();
             Serial.print("rx: ");
             Serial.println(received);
@@ -619,4 +623,40 @@ bool init_ublox() {
     }
     Serial.println("Failed to initialize UBlox GNSS.");
     return false;
+}
+
+void sendCommandWithTimestamp() {
+    // Get the current timestamp
+    DateTime now = rtc.now();
+    char timestamp[15]; // Buffer for YYYYMMDDHHMMSS
+    sprintf(timestamp, "%04d%02d%02d%02d%02d%02d", 
+            now.year(), now.month(), now.day(), 
+            now.hour(), now.minute(), now.second());
+
+    // Construct the command
+    String commandContainer = "ARQCMD6T/";
+    commandContainer += timestamp;
+    // commandContainer += "\n";
+
+    // Send the command via SSMSerial
+    // SSMSerial.write(commandContainer.c_str());
+    SSMSerial.println(commandContainer);
+    Serial.print("Sent: ");
+    Serial.println(commandContainer);
+
+    // Receive the response
+    char response[500]; // Adjust size as needed
+    int bytesRead = SSMSerial.readBytesUntil('\n', response, sizeof(response) - 1);
+    response[bytesRead] = '\0'; // Null-terminate the response
+
+    delay(5000);
+
+    // Print the response
+    Serial.print("Received: ");
+    Serial.println(response);
+}
+
+void testSSM(){
+  SSMSerial.println("Hello");
+  Serial.println("Hello");
 }
