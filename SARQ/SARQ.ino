@@ -641,22 +641,32 @@ void sendCommandWithTimestamp() {
     // Send the command via SSMSerial
     // SSMSerial.write(commandContainer.c_str());
     SSMSerial.println(commandContainer);
-    Serial.print("Sent: ");
-    Serial.println(commandContainer);
+    Serial.print("Sent: "); Serial.println(commandContainer);
 
-    // Receive the response
+    // Wait for the response
+    unsigned long startTime = millis();
     char response[500]; // Adjust size as needed
-    int bytesRead = SSMSerial.readBytesUntil('\n', response, sizeof(response) - 1);
-    response[bytesRead] = '\0'; // Null-terminate the response
+    int bytesRead = 0;
 
-    delay(5000);
+    while (millis() - startTime < 5000) { // Wait for up to 5 seconds
+        if (SSMSerial.available()) {
+            bytesRead = SSMSerial.readBytesUntil('\n', response, sizeof(response) - 1);
+            response[bytesRead] = '\0'; // Null-terminate the response
+            break;
+        }
+    }
 
-    // Print the response
-    Serial.print("Received: ");
-    Serial.println(response);
+    if (bytesRead > 0) {
+        // Print the response
+        Serial.print("Received: ");
+        Serial.println(response);
+    } else {
+        Serial.println("No response received from STM32.");
+    }
 }
 
 void testSSM(){
-  SSMSerial.println("Hello");
-  Serial.println("Hello");
+  // SSMSerial.println("Hello");
+  SSMSerial.write("Hello\n");
+  Serial.print("Sent: "); Serial.println("Hello");
 }
